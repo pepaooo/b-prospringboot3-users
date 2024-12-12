@@ -1,53 +1,60 @@
 package com.apress.users;
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
+import org.springframework.stereotype.Repository;
+
+import lombok.AllArgsConstructor;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.support.GeneratedKeyHolder;
+import org.springframework.jdbc.support.KeyHolder;
+import org.springframework.stereotype.Repository;
+
+import java.sql.PreparedStatement;
+import java.sql.Statement;
+import java.sql.Types;
 import java.util.Optional;
 
-@org.springframework.stereotype.Repository
-public class UserRepository implements Repository<User, String> {
-    private Map<String, User> users = new HashMap<>() {{
-        put("ximena@email.com", User.builder()
-                .email("ximena@email.com")
-                .name("Ximena")
-                .gravatarUrl("https://www.gravatar.com/avatar/23bb62a7d0ca63c9a804908e57bf6bd4?d=wavatar")
-                .password("aw2s0meR!")
-                .role(UserRole.USER)
-                .active(true)
-                .build());
-        put("norma@email.com", User.builder()
-                .name("Norma")
-                .email("norma@email.com")
-                .gravatarUrl("https://www.gravatar.com/avatar/f07f7e553264c9710105edebe6c465e7?d=wavatar")
-                .password("aw2s0meR!")
-                .role(UserRole.USER)
-                .role(UserRole.ADMIN)
-                .active(true)
-                .build());
-    }};
+@AllArgsConstructor
+@Repository
+public class UserRepository implements SimpleRepository<User, Integer> {
+
+    private JdbcTemplate jdbcTemplate;
 
     @Override
-    public User save(User user) {
-        if (user.getGravatarUrl() == null)
-            user.setGravatarUrl("https://www.gravatar.com/avatar/23bb62a7d0ca63c9a804908e57bf6bd4?d=wavatar");
-        if (user.getUserRole() == null)
-            user.setUserRole(Collections.emptyList());
-        return this.users.put(user.getEmail(), user);
-    }
-
-    @Override
-    public Optional<User> findById(String id) {
-        return Optional.of(this.users.get(id));
+    public Optional<User> findById(Integer id) {
+        String sql = "SELECT * FROM users WHERE id = ?";
+        Object[] params = new Object[]{id};
+        User user = jdbcTemplate.queryForObject(sql, params, new int[]{Types.INTEGER}, new UserRowMapper());
+        return Optional.ofNullable(user);
     }
 
     @Override
     public Iterable<User> findAll() {
-        return this.users.values();
+        String sql = "SELECT * FROM users";
+        return this.jdbcTemplate.query(sql, new UserRowMapper());
     }
 
     @Override
-    public void deleteById(String id) {
-        this.users.remove(id);
+    public User save(User user) {
+        String sql = "INSERT INTO users (name, email, password, gravatar_url,user_role,active) VALUES (?, ?, ?, ?, ?, ?)";
+        KeyHolder keyHolder = new GeneratedKeyHolder();
+        jdbcTemplate.update(connection -> {
+            String[] array = user.userRole().stream().map(Enum::name).toArray(String[]::new);
+            PreparedStatement ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
+            ps.setString(1, user.name());
+            ps.setString(2, user.email());
+            ps.setString(3, user.password());
+            ps.setString(4, user.gravatarUrl());
+            ps.setArray(5, connection.createArrayOf("varchar", array));
+            ps.setBoolean(6, user.active());
+            return ps;
+        }, keyHolder);
+        User userCreated = user.withId((Integer) keyHolder.getKeys().get("id"));
+        return userCreated;
+    }
+
+    @Override
+    public void deleteById(Integer id) {
+        String sql = "DELETE FROM users WHERE id = ?";
+        jdbcTemplate.update(sql, id);
     }
 }
