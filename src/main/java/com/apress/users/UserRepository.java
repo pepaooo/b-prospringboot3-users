@@ -1,7 +1,5 @@
 package com.apress.users;
 
-import org.springframework.stereotype.Repository;
-
 import lombok.AllArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
