@@ -6,6 +6,7 @@ plugins {
 
 group = 'com.apress'
 version = '0.0.1-SNAPSHOT'
+description = 'users. Capítulo 4'
 
 java {
 	toolchain {
